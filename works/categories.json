@@ -1,0 +1,46 @@
+[
+  {
+    "label": "Events",
+    "file": "events.json"
+  },
+  {
+    "label": "HoReCa",
+    "file": "horeca.json"
+  },
+  {
+    "label": "Fashion",
+    "file": "fashion.json"
+  },
+  {
+    "label": "Portrait",
+    "file": "portrait.json"
+  },
+  {
+    "label": "Talking Head",
+    "file": "talking-head.json"
+  },
+  {
+    "label": "Sport",
+    "file": "sport.json"
+  },
+  {
+    "label": "Backstage",
+    "file": "backstage.json"
+  },
+  {
+    "label": "Animated Reels",
+    "file": "animated-reels.json"
+  },
+  {
+    "label": "Podcast",
+    "file": "podcast.json"
+  },
+  {
+    "label": "Video Clips",
+    "file": "video-clips.json"
+  },
+  {
+    "label": "Appearances",
+    "file": "appearances.json"
+  }
+]
