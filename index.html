@@ -125,7 +125,8 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
 }
 /* vertical work keeps its own shape, in narrower columns */
 .work-tiles.vert{grid-template-columns:repeat(6, minmax(0,1fr)); gap:22px 18px;}
-.work-tiles.vert .frame{aspect-ratio:9/16;}
+.tile.vert .frame{aspect-ratio:9/16;}   /* also works for one odd vertical
+                                           video inside a horizontal row */
 
 @media (max-width:1100px){
   .work-row{grid-template-columns:1fr;}
@@ -539,8 +540,10 @@ footer .res-label{align-self:start;}
    the entry as  { id: "abc123", cover: "img/name.jpg" }
    ============================================================ */
 const WORKS = [
-  { label: "Portrait", vertical: true, items: [
-    "8x27kQ1l6jQ", "Gl_qK3lT6bE", "gB23GZ-agJA", "sSnaAsn7sJ8"
+  { label: "Events", items: [
+    "2QUJ3TmFOJ8", "Bsgnpl1g6og", "Us_j3dY6cTI", "5Dze94Z_tb4", "PSKhpTis45k",
+    { id: "ReNbsp_MmEU", vertical: true },
+    { id: "4NxdGlEjXqU", vertical: true }
   ]},
   { label: "HoReCa", vertical: true, items: [
     "q4UGhoJr2Ds", "cEciSl2MK7I", "Ofmon_Zu_wM", "oTO_m7bcPW8",
@@ -549,19 +552,20 @@ const WORKS = [
   { label: "Fashion", vertical: true, items: [
     "sPZ7g3HsHZ4", "fjBQc17Uvd0", "uOu-hXZE1yQ"
   ]},
-  { label: "Talking Head", vertical: true, items: [
-    "s8C43aErscM", "g_d9eW-KPxw"
+  { label: "Portrait", vertical: true, items: [
+    "8x27kQ1l6jQ", "Gl_qK3lT6bE", "gB23GZ-agJA", "sSnaAsn7sJ8"
   ]},
-  { label: "Events", items: [
-    "2QUJ3TmFOJ8", "Bsgnpl1g6og", "Us_j3dY6cTI",
-    "5Dze94Z_tb4", "ReNbsp_MmEU", "4NxdGlEjXqU"
+  { label: "Talking Head", vertical: true, items: [
+    "s8C43aErscM", "g_d9eW-KPxw", "bZ6KFkodiI0"
+  ]},
+  { label: "Sport", vertical: true, items: [
+    "ktUPw9cTlbM", "4peXnydfaUc", "VDjiZUakBe0"
   ]},
   { label: "Backstage", items: [
     "9nUPewJb4yM"
   ]},
   { label: "Animated Reels", vertical: true, items: [] },
   { label: "Podcast",        items: [] },
-  { label: "Sport",          items: [] },
   { label: "Video Clips",    items: [] },
   { label: "Appearances",    items: [] }
 ];
@@ -631,7 +635,7 @@ var openPlayer = (function () {
       var vertical = (w.vertical !== undefined) ? w.vertical : !!group.vertical;
 
       var a = document.createElement("a");
-      a.className = "tile";
+      a.className = "tile" + (vertical ? " vert" : "");
       a.href = "https://www.youtube.com/watch?v=" + w.id;   // still works on middle click
       a.setAttribute("aria-label", group.label + " video");
       a.addEventListener("click", function (e) {
