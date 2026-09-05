@@ -119,67 +119,35 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
   grid-template-columns:1.9fr 4fr;
   padding:0 0 56px;
 }
+/* a 12-column bed: horizontal videos take 3 of it, vertical ones 2,
+   so both shapes can share a row without anyone being squashed */
 .work-tiles{
-  display:grid; gap:22px 26px;
-  grid-template-columns:repeat(4, minmax(0,1fr));
+  display:grid; gap:22px 20px;
+  grid-template-columns:repeat(12, minmax(0,1fr));
+  align-items:start;
 }
-/* vertical work keeps its own shape, in narrower columns */
-.work-tiles.vert{grid-template-columns:repeat(6, minmax(0,1fr)); gap:22px 18px;}
-.tile.vert .frame{aspect-ratio:9/16;}   /* orientation is per video, so a row
-                                           can hold both shapes at once */
-.work-tiles.vert .tile:not(.vert){grid-column:span 2;}   /* a horizontal video in a
-                                           vertical row needs the extra width */
+.tile{grid-column:span 3;}
+.tile.vert{grid-column:span 2;}
+.tile .frame{aspect-ratio:16/9;}
+.tile.vert .frame{aspect-ratio:9/16;}
 
 @media (max-width:1100px){
   .work-row{grid-template-columns:1fr;}
-  .work-tiles{grid-template-columns:repeat(3, minmax(0,1fr));}
-  .work-tiles.vert{grid-template-columns:repeat(5, minmax(0,1fr));}
+  .tile{grid-column:span 4;}
+  .tile.vert{grid-column:span 3;}
 }
 @media (max-width:760px){
-  .work-tiles{grid-template-columns:repeat(2, minmax(0,1fr));}
-  .work-tiles.vert{grid-template-columns:repeat(3, minmax(0,1fr));}
+  .tile{grid-column:span 6;}
+  .tile.vert{grid-column:span 4;}
 }
 @media (max-width:480px){
-  .work-tiles{grid-template-columns:1fr; gap:16px;}
-  .work-tiles.vert{grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px;}
+  .work-tiles{gap:16px 14px;}
+  .tile{grid-column:span 12;}
+  .tile.vert{grid-column:span 6;}
 }
-
-/* ---------------- player overlay ---------------- */
-.lb{
-  position:fixed; inset:0; z-index:100;
-  display:none; align-items:center; justify-content:center;
-  background:rgba(9,9,9,.965);
-  padding:clamp(14px,4vw,48px);
-}
-.lb.open{display:flex;}
-.lb-frame{
-  position:relative; width:min(92vw, 1360px); aspect-ratio:16/9;
-  max-height:86svh; background:#000;
-}
-.lb.vert .lb-frame{
-  width:auto; height:min(86svh, 900px); aspect-ratio:9/16;
-}
-.lb-frame iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
-.lb-close{
-  position:absolute; top:clamp(12px,3vw,26px); right:clamp(12px,3vw,26px);
-  background:none; border:0; cursor:pointer; padding:8px;
-  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--dim);
-}
-.lb-close:hover{color:var(--hover);}
-body.lb-on{overflow:hidden;}
 
 .tile{display:block;}
-.tile .frame{
-  aspect-ratio:16/9; overflow:hidden; background:#191917; position:relative;
-}
-.tile .frame .ph{
-  width:100%; height:100%;
-  background:linear-gradient(145deg,#232320 0%,#151513 100%);
-  display:flex; align-items:center; justify-content:center;
-  font-family:var(--mono); font-size:10px; letter-spacing:.16em;
-  color:#3d3d3a; text-transform:uppercase;
-}
+.tile .frame{overflow:hidden; background:#191917; position:relative;}
 .tile img{transition:transform .5s cubic-bezier(.2,.7,.3,1), opacity .25s; opacity:.86;
   image-rendering:auto; backface-visibility:hidden;}
 .tile:hover img, .tile:focus-visible img{transform:scale(1.03); opacity:1;}
@@ -534,41 +502,38 @@ footer .res-label{align-self:start;}
 
 <script>
 /* ============================================================
-   YOUR WORKS.
-   Each line is one YouTube id: the part of the link after
-   v= or after youtu.be/. Add a line, it shows up on the page.
-   Empty categories are skipped automatically.
-   To use your own still instead of the YouTube cover, write
-   the entry as  { id: "abc123", cover: "img/name.jpg" }
+   YOUR WORKS. One YouTube id per line: the part of the link
+   after v= or after youtu.be/ or after /shorts/.
+
+   Orientation is detected automatically, nothing to mark.
+   Own cover instead of the YouTube one: { id: "abc", cover: "img/x.jpg" }
+   Force the shape if the guess is ever wrong: { id: "abc", vertical: true }
    ============================================================ */
 const WORKS = [
   { label: "Events", items: [
-    "2QUJ3TmFOJ8", "Bsgnpl1g6og", "Us_j3dY6cTI", "5Dze94Z_tb4", "PSKhpTis45k",
-    { id: "ReNbsp_MmEU", vertical: true },
-    { id: "4NxdGlEjXqU", vertical: true }
+    "2QUJ3TmFOJ8", "Bsgnpl1g6og", "Us_j3dY6cTI", "5Dze94Z_tb4",
+    "PSKhpTis45k", "ReNbsp_MmEU", "4NxdGlEjXqU"
   ]},
-  { label: "HoReCa", vertical: true, items: [
+  { label: "HoReCa", items: [
     "q4UGhoJr2Ds", "cEciSl2MK7I", "Ofmon_Zu_wM", "oTO_m7bcPW8",
     "ztl5Ftpv4gs", "P0ZuKVM6__M", "ACZ7-5Sa150", "F-pfyjQ0A0U"
   ]},
-  { label: "Fashion", vertical: true, items: [
+  { label: "Fashion", items: [
     "sPZ7g3HsHZ4", "fjBQc17Uvd0", "uOu-hXZE1yQ"
   ]},
-  { label: "Portrait", vertical: true, items: [
+  { label: "Portrait", items: [
     "8x27kQ1l6jQ", "Gl_qK3lT6bE", "gB23GZ-agJA", "sSnaAsn7sJ8"
   ]},
-  { label: "Talking Head", vertical: true, items: [
-    "s8C43aErscM", "g_d9eW-KPxw", "bZ6KFkodiI0",
-    { id: "UV0dVeslLNE", vertical: false },
-    { id: "E08SWdoaGHc", vertical: false }
+  { label: "Talking Head", items: [
+    "s8C43aErscM", "g_d9eW-KPxw", "bZ6KFkodiI0", "UV0dVeslLNE", "E08SWdoaGHc"
   ]},
-  { label: "Sport", vertical: true, items: [
+  { label: "Sport", items: [
     "ktUPw9cTlbM", "4peXnydfaUc", "VDjiZUakBe0"
   ]},
   { label: "Backstage", items: [
     "9nUPewJb4yM"
   ]},
-  { label: "Animated Reels", vertical: true, items: [] },
+  { label: "Animated Reels", items: [] },
   { label: "Podcast",        items: [] },
   { label: "Video Clips",    items: [] },
   { label: "Appearances",    items: [] }
@@ -619,6 +584,25 @@ var openPlayer = (function () {
     if (!row.querySelector(".tile")) row.remove();
   }
 
+  // "oardefault" is the only YouTube cover kept in the video's own shape.
+  // Measuring it tells us whether the video is vertical, so nothing has to
+  // be flagged by hand. It is also the right image to show for vertical
+  // work, since every other size has blurred side panels baked in.
+  function probeShape(id, done) {
+    var names = ["oardefault", "oar2"], i = 0;
+    var probe = new Image();
+    probe.onload = function () {
+      if (probe.naturalWidth <= 120) { done(null); return; }   // video is gone
+      done({ vertical: probe.naturalHeight > probe.naturalWidth, src: probe.src });
+    };
+    probe.onerror = function () {
+      if (i < names.length) { probe.src = url(names[i++]); return; }
+      done({ vertical: false, src: null });   // no true-shape cover: treat as horizontal
+    };
+    function url(n) { return "https://i.ytimg.com/vi/" + id + "/" + n + ".jpg"; }
+    probe.src = url(names[i++]);
+  }
+
   WORKS.forEach(function (group) {
     if (!group.items || !group.items.length) return;
 
@@ -631,60 +615,60 @@ var openPlayer = (function () {
     row.appendChild(label);
 
     var tiles = document.createElement("div");
-    tiles.className = "work-tiles" + (group.vertical ? " vert" : "");
+    tiles.className = "work-tiles";
 
     group.items.forEach(function (entry) {
       var w = (typeof entry === "string") ? { id: entry } : entry;
 
-      var vertical = (w.vertical !== undefined) ? w.vertical : !!group.vertical;
-
       var a = document.createElement("a");
-      a.className = "tile" + (vertical ? " vert" : "");
+      a.className = "tile";
       a.href = "https://www.youtube.com/watch?v=" + w.id;   // still works on middle click
       a.setAttribute("aria-label", group.label + " video");
-      a.addEventListener("click", function (e) {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        openPlayer(w.id, vertical);
-      });
 
       var frame = document.createElement("div");
       frame.className = "frame";
-
       var img = document.createElement("img");
       img.alt = "";
       img.loading = "lazy";
+      frame.appendChild(img);
+      a.appendChild(frame);
+      tiles.appendChild(a);
 
-      function gone() {                 // dead video: drop the tile entirely
-        a.remove();
-        prune(row);
-      }
+      function gone() { a.remove(); prune(row); }
 
-      if (w.cover) {
-        img.src = w.cover;              // your own still always wins
-        img.onerror = gone;
-      } else {
-        // "oardefault" keeps the video's original shape, so vertical work
-        // gets no blurred side panels baked into the cover.
-        var steps = vertical
-          ? ["oardefault", "oar2", "maxresdefault", "sddefault", "hqdefault"]
-          : ["maxresdefault", "sddefault", "hqdefault"];
-        var step = 0;
+      function show(vertical, trueShapeSrc) {
+        a.classList.toggle("vert", !!vertical);
+        a.addEventListener("click", function (e) {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+          e.preventDefault();
+          openPlayer(w.id, vertical);
+        });
+
+        if (w.cover) { img.src = w.cover; img.onerror = gone; return; }
+
+        if (vertical && trueShapeSrc) { img.src = trueShapeSrc; img.onerror = gone; return; }
+
+        // horizontal: take the sharpest cover available
+        var steps = ["maxresdefault", "sddefault", "hqdefault"], step = 0;
         function next() {
           if (step >= steps.length) { gone(); return; }
           img.src = "https://i.ytimg.com/vi/" + w.id + "/" + steps[step++] + ".jpg";
         }
         img.onerror = next;
-        img.onload = function () {
-          // an unavailable video answers with a 120x90 grey placeholder
-          if (img.naturalWidth <= 120) next();
-        };
+        img.onload = function () { if (img.naturalWidth <= 120) next(); };
         next();
       }
 
-      frame.appendChild(img);
-      a.appendChild(frame);
-      tiles.appendChild(a);
+      // a hand-set flag still wins, but nothing has to be set by hand
+      var forced = (w.vertical !== undefined) ? w.vertical
+                 : (group.vertical !== undefined ? group.vertical : undefined);
+
+      if (w.cover && forced !== undefined) { show(forced, null); return; }
+
+      probeShape(w.id, function (shape) {
+        if (!shape) { gone(); return; }
+        show(forced !== undefined ? forced : shape.vertical, shape.src);
+      });
     });
 
     row.appendChild(tiles);
