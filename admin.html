@@ -90,6 +90,16 @@ button:disabled{opacity:.4; cursor:default;}
 </div>
 
 <div id="app">
+  <div class="card" id="heroCard">
+    <h2>Видео в шапке</h2>
+    <span class="count">works/hero.json</span>
+    <div class="add">
+      <input id="heroInput" placeholder="Ссылка на YouTube или id">
+      <button class="primary" id="heroSave">Сохранить</button>
+    </div>
+    <div class="msg" id="heroMsg"></div>
+  </div>
+
   <div id="cats"></div>
 
   <div class="card">
@@ -112,6 +122,7 @@ const NOTE = 'Один id в строке. "abc123" = горизонтально
 let token = "";
 let cats = [];          // [{label, file, sha, items, itemsSha, dirty}]
 let catsSha = "";
+let heroSha = "";
 
 /* ---------- helpers ---------- */
 function b64encode(str) {
@@ -186,8 +197,17 @@ async function putFile(path, text, sha, message) {
 
 /* ---------- load ---------- */
 async function connect() {
-  token = document.getElementById("token").value.trim();
+  const raw = document.getElementById("token").value;
+  // a token is plain latin letters, digits and _ - only. Anything else means
+  // something extra got copied in along with it.
+  token = raw.replace(/\s+/g, "");
   if (!token) { say(authMsg, "Вставь токен", "bad"); return; }
+  if (!/^[A-Za-z0-9_.-]+$/.test(token)) {
+    say(authMsg, "В поле попал лишний текст. Нажми «Забыть токен» и вставь только строку github_pat_...", "bad");
+    return;
+  }
+  if (token.length < 20) { say(authMsg, "Строка слишком короткая, это не токен", "bad"); return; }
+  document.getElementById("token").value = token;
   say(authMsg, "Читаю репозиторий...");
   try {
     const c = await getFile("works/categories.json");
@@ -204,12 +224,27 @@ async function connect() {
       } catch (e) { /* file missing: treat as empty, it will be created on save */ }
       cats.push({ label: entry.label, file: entry.file, items, sha, dirty: false });
     }
+    try {
+      const h = await getFile("works/hero.json");
+      heroSha = h.sha;
+      const hd = JSON.parse(h.text);
+      document.getElementById("heroInput").value = (hd && hd.id) || "";
+    } catch (e) {
+      heroSha = "";
+      say(document.getElementById("heroMsg"),
+          "works/hero.json не найден, он создастся при сохранении");
+    }
+
     localStorage.setItem("dicin_token", token);
     say(authMsg, "Подключено. Категорий: " + cats.length, "ok");
     document.getElementById("app").style.display = "block";
     draw();
   } catch (e) {
-    say(authMsg, "Не вышло: " + e.message, "bad");
+    let m = e.message || "";
+    if (/^401/.test(m)) m = "Токен не принят. Проверь, что скопирована вся строка и он не отозван.";
+    else if (/^403/.test(m)) m = "Нет прав. У токена должно быть Contents: Read and write на репозиторий di.";
+    else if (/^404/.test(m)) m = "Не нашёл works/categories.json. Папка works залита в репозиторий?";
+    say(authMsg, m, "bad");
   }
 }
 
@@ -363,6 +398,26 @@ document.getElementById("addCat").onclick = async () => {
     document.getElementById("newCatName").value = "";
     say(box, "Готово. Категория появится на сайте, когда в ней будет видео.", "ok");
     draw();
+  } catch (e) {
+    say(box, "Ошибка: " + e.message, "bad");
+  }
+};
+
+/* ---------- hero ---------- */
+document.getElementById("heroSave").onclick = async () => {
+  const box = document.getElementById("heroMsg");
+  const raw = document.getElementById("heroInput").value.trim();
+  const id = raw ? videoId(raw) : "";
+  if (raw && !id) { say(box, "Не разобрал ссылку", "bad"); return; }
+  say(box, "Сохраняю...");
+  try {
+    const text = JSON.stringify({
+      note: "Видео на первом экране. Только id ролика: хвост ссылки после v=, youtu.be/ или /shorts/. Пустая строка = без видео.",
+      id: id
+    }, null, 2) + "\n";
+    heroSha = await putFile("works/hero.json", text, heroSha || null, "hero: " + (id || "none"));
+    document.getElementById("heroInput").value = id;
+    say(box, id ? "Опубликовано. Шапка обновится за минуту." : "Видео убрано из шапки.", "ok");
   } catch (e) {
     say(box, "Ошибка: " + e.message, "bad");
   }

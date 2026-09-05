@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DI.CIN.PROD — Dmitry Demenko</title>
-<meta name="build" content="v10-works-folder">
+<meta name="build" content="v11-hero-in-works">
 <meta name="description" content="Videographer, video producer and editor. Commercial, HoReCa, fashion, events, podcasts and educational content.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -751,9 +751,9 @@ var openPlayer = (function () {
    disk, blocked network) the still frame stays and no error
    panel is ever shown.
    ============================================================ */
-const HERO_ID = "9nUPewJb4yM";
+const FALLBACK_HERO_ID = "xNSMUtwTT00";   // used only if works/hero.json cannot be read
 
-(function () {
+function startHero(HERO_ID) {
   var box = document.getElementById("hero-media");
   if (!box || !HERO_ID) return;
 
@@ -813,7 +813,12 @@ const HERO_ID = "9nUPewJb4yM";
   tag.src = "https://www.youtube.com/iframe_api";
   tag.onerror = drop;
   document.head.appendChild(tag);
-})();
+}
+
+fetch("works/hero.json", { cache: "no-cache" })
+  .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+  .then(function (d) { startHero((d && d.id || "").trim()); })
+  .catch(function () { startHero(FALLBACK_HERO_ID); });   // opened from disk, most likely
 </script>
 
 </body>
