@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DI.CIN.PROD — works admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0f0f; --ink:#efefec; --dim:#8b8b86; --faint:#4a4a47;
+  --line:#242422; --panel:#151513; --ok:#8fd6a4; --bad:#e08c8c;
+  --mono:'DM Mono', ui-monospace, monospace;
+  --sans:'Space Grotesk', system-ui, sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-weight:300; font-size:14px; -webkit-font-smoothing:antialiased;
+  padding:clamp(16px,4vw,44px);}
+h1{font-size:22px; font-weight:300; text-transform:uppercase; letter-spacing:.01em; margin:0 0 4px;}
+.sub{color:var(--dim); font-size:13px; margin:0 0 26px;}
+.label{font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--dim); display:block; margin-bottom:7px;}
+input,select,button,textarea{font-family:var(--mono); font-size:13px;}
+input,select{background:#1b1b19; color:var(--ink); border:1px solid var(--line);
+  padding:10px 12px; width:100%; border-radius:0;}
+input:focus,select:focus{outline:none; border-color:#4d4d49;}
+button{background:#242422; color:var(--ink); border:1px solid #33332f;
+  padding:10px 16px; cursor:pointer; letter-spacing:.08em; text-transform:uppercase; font-size:10px;}
+button:hover{background:#2f2f2c;}
+button.primary{background:#e8e8e4; color:#111; border-color:#e8e8e4;}
+button.primary:hover{background:#fff;}
+button.ghost{background:none; border-color:var(--line); color:var(--dim);}
+button.ghost:hover{color:var(--ink);}
+button:disabled{opacity:.4; cursor:default;}
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;}
+.card{background:var(--panel); border:1px solid var(--line); padding:18px; margin-bottom:14px;}
+.card h2{font-size:15px; font-weight:400; text-transform:uppercase; letter-spacing:.02em;
+  margin:0 0 2px;}
+.count{font-family:var(--mono); font-size:10px; letter-spacing:.12em; color:var(--faint);
+  text-transform:uppercase;}
+.items{margin:14px 0 0; padding:0; list-style:none;}
+.items li{display:flex; align-items:center; gap:10px; padding:7px 0;
+  border-top:1px solid var(--line); font-family:var(--mono); font-size:12px;}
+.items li:first-child{border-top:none;}
+.thumb{width:64px; height:36px; object-fit:cover; background:#000; flex-shrink:0;}
+.thumb.v{width:26px; height:46px;}
+.vid{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--dim);}
+.tag{font-size:9px; letter-spacing:.12em; color:var(--faint); border:1px solid var(--line);
+  padding:3px 6px; cursor:pointer; text-transform:uppercase;}
+.tag:hover{color:var(--ink); border-color:#4d4d49;}
+.x{color:var(--faint); cursor:pointer; padding:4px 8px; font-size:14px;}
+.x:hover{color:var(--bad);}
+.add{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+.add input{flex:1; min-width:200px;}
+.msg{font-family:var(--mono); font-size:11px; margin-top:12px; min-height:16px;}
+.msg.ok{color:var(--ok);} .msg.bad{color:var(--bad);}
+.hint{color:var(--faint); font-size:12px; line-height:1.6;}
+.hint code{font-family:var(--mono); color:var(--dim);}
+#app{display:none;}
+.dirty{border-color:#4a4a3a;}
+</style>
+</head>
+<body>
+
+<h1>Works admin</h1>
+<p class="sub">Добавление работ на сайт. Правит файлы в папке <code>works</code> и сразу публикует.</p>
+
+<div class="card" id="auth">
+  <span class="label">GitHub token</span>
+  <div class="row">
+    <div style="flex:1; min-width:240px;"><input id="token" type="password" placeholder="github_pat_..."></div>
+    <button class="primary" id="connect">Подключиться</button>
+    <button class="ghost" id="forget">Забыть токен</button>
+  </div>
+  <div class="msg" id="authMsg"></div>
+  <p class="hint" style="margin-top:14px;">
+    Токен нужен, чтобы страница могла записывать в репозиторий. Он хранится только
+    в этом браузере и уходит напрямую на api.github.com.<br>
+    Создать: GitHub → Settings → Developer settings → Personal access tokens →
+    Fine-grained tokens. Repository access: только <code>dicinprod-dot/di</code>.
+    Permissions → Repository permissions → Contents: <code>Read and write</code>.
+  </p>
+</div>
+
+<div id="app">
+  <div id="cats"></div>
+
+  <div class="card">
+    <h2>Новая категория</h2>
+    <div class="add">
+      <input id="newCatName" placeholder="Название, например Podcast">
+      <button id="addCat">Создать</button>
+    </div>
+    <div class="msg" id="catMsg"></div>
+  </div>
+</div>
+
+<script>
+const OWNER = "dicinprod-dot";
+const REPO  = "di";
+const BRANCH = "main";
+const API = "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/";
+const NOTE = 'Один id в строке. "abc123" = горизонтальное, "v:abc123" = вертикальное. Id это хвост ссылки после v=, youtu.be/ или /shorts/.';
+
+let token = "";
+let cats = [];          // [{label, file, sha, items, itemsSha, dirty}]
+let catsSha = "";
+
+/* ---------- helpers ---------- */
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function b64decode(b64) {
+  const bin = atob(b64.replace(/\s/g, ""));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function videoId(text) {
+  const s = (text || "").trim();
+  if (!s) return "";
+  let m = s.match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{6,})/);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9_-]{6,}$/.test(s)) return s;      // a bare id
+  return "";
+}
+function slug(name) {
+  return name.toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "category";
+}
+function say(el, text, kind) {
+  el.textContent = text;
+  el.className = "msg" + (kind ? " " + kind : "");
+}
+
+async function gh(path, opts) {
+  const r = await fetch(API + path, Object.assign({
+    headers: {
+      "Authorization": "Bearer " + token,
+      "Accept": "application/vnd.github+json"
+    }
+  }, opts || {}));
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error(r.status + " " + t.slice(0, 200));
+  }
+  return r.json();
+}
+async function getFile(path) {
+  const d = await gh(path + "?ref=" + BRANCH);
+  return { sha: d.sha, text: b64decode(d.content) };
+}
+async function putFile(path, text, sha, message) {
+  const body = { message: message, content: b64encode(text), branch: BRANCH };
+  if (sha) body.sha = sha;
+  const d = await gh(path, { method: "PUT", body: JSON.stringify(body) });
+  return d.content.sha;
+}
+
+/* ---------- load ---------- */
+async function connect() {
+  token = document.getElementById("token").value.trim();
+  if (!token) { say(authMsg, "Вставь токен", "bad"); return; }
+  say(authMsg, "Читаю репозиторий...");
+  try {
+    const c = await getFile("works/categories.json");
+    catsSha = c.sha;
+    const list = JSON.parse(c.text);
+    cats = [];
+    for (const entry of list) {
+      let items = [], sha = "";
+      try {
+        const f = await getFile("works/" + entry.file);
+        sha = f.sha;
+        const data = JSON.parse(f.text);
+        items = Array.isArray(data) ? data : (data.items || []);
+      } catch (e) { /* file missing: treat as empty, it will be created on save */ }
+      cats.push({ label: entry.label, file: entry.file, items, sha, dirty: false });
+    }
+    localStorage.setItem("dicin_token", token);
+    say(authMsg, "Подключено. Категорий: " + cats.length, "ok");
+    document.getElementById("app").style.display = "block";
+    draw();
+  } catch (e) {
+    say(authMsg, "Не вышло: " + e.message, "bad");
+  }
+}
+
+/* ---------- render ---------- */
+function draw() {
+  const host = document.getElementById("cats");
+  host.innerHTML = "";
+
+  cats.forEach((cat, ci) => {
+    const card = document.createElement("div");
+    card.className = "card" + (cat.dirty ? " dirty" : "");
+
+    const head = document.createElement("div");
+    head.innerHTML = '<h2></h2><span class="count"></span>';
+    head.querySelector("h2").textContent = cat.label;
+    head.querySelector(".count").textContent =
+      cat.items.length + " видео · works/" + cat.file + (cat.dirty ? " · не сохранено" : "");
+    card.appendChild(head);
+
+    const ul = document.createElement("ul");
+    ul.className = "items";
+    cat.items.forEach((entry, ii) => {
+      const vertical = entry.slice(0, 2) === "v:";
+      const id = vertical ? entry.slice(2) : entry;
+
+      const li = document.createElement("li");
+
+      const img = document.createElement("img");
+      img.className = "thumb" + (vertical ? " v" : "");
+      img.src = "https://i.ytimg.com/vi/" + id + "/default.jpg";
+      img.alt = "";
+      li.appendChild(img);
+
+      const span = document.createElement("span");
+      span.className = "vid";
+      span.textContent = id;
+      li.appendChild(span);
+
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = vertical ? "вертикальное" : "горизонтальное";
+      tag.title = "Переключить";
+      tag.onclick = () => {
+        cat.items[ii] = vertical ? id : "v:" + id;
+        cat.dirty = true; draw();
+      };
+      li.appendChild(tag);
+
+      const up = document.createElement("span");
+      up.className = "x"; up.textContent = "↑"; up.title = "Выше";
+      up.onclick = () => {
+        if (ii === 0) return;
+        const t = cat.items[ii - 1]; cat.items[ii - 1] = cat.items[ii]; cat.items[ii] = t;
+        cat.dirty = true; draw();
+      };
+      li.appendChild(up);
+
+      const del = document.createElement("span");
+      del.className = "x"; del.textContent = "×"; del.title = "Удалить";
+      del.onclick = () => { cat.items.splice(ii, 1); cat.dirty = true; draw(); };
+      li.appendChild(del);
+
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+
+    const add = document.createElement("div");
+    add.className = "add";
+    add.innerHTML =
+      '<input placeholder="Ссылка на YouTube или id">' +
+      '<select><option value="h">горизонтальное</option><option value="v">вертикальное</option></select>' +
+      '<button>Добавить</button>' +
+      '<button class="primary">Сохранить</button>';
+    const [inp, sel] = [add.querySelector("input"), add.querySelector("select")];
+    const [bAdd, bSave] = add.querySelectorAll("button");
+
+    bAdd.onclick = () => {
+      const id = videoId(inp.value);
+      if (!id) { say(msg, "Не разобрал ссылку", "bad"); return; }
+      const entry = (sel.value === "v" ? "v:" : "") + id;
+      if (cat.items.indexOf(entry) > -1) { say(msg, "Уже в списке", "bad"); return; }
+      cat.items.push(entry);
+      cat.dirty = true;
+      draw();
+    };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") bAdd.click(); });
+
+    bSave.onclick = async () => {
+      bSave.disabled = true;
+      say(msg, "Сохраняю...");
+      try {
+        const text = JSON.stringify({ note: NOTE, items: cat.items }, null, 2) + "\n";
+        cat.sha = await putFile("works/" + cat.file, text, cat.sha,
+                                "works: " + cat.label + " (" + cat.items.length + ")");
+        cat.dirty = false;
+        say(msg, "Опубликовано. Сайт обновится за минуту.", "ok");
+        setTimeout(draw, 1200);
+      } catch (e) {
+        say(msg, "Ошибка: " + e.message, "bad");
+      }
+      bSave.disabled = false;
+    };
+
+    card.appendChild(add);
+
+    const msg = document.createElement("div");
+    msg.className = "msg";
+    card.appendChild(msg);
+
+    host.appendChild(card);
+  });
+}
+
+/* ---------- new category ---------- */
+document.getElementById("addCat").onclick = async () => {
+  const name = document.getElementById("newCatName").value.trim();
+  const box = document.getElementById("catMsg");
+  if (!name) { say(box, "Введи название", "bad"); return; }
+  const file = slug(name) + ".json";
+  if (cats.some(c => c.file === file)) { say(box, "Такая уже есть", "bad"); return; }
+  say(box, "Создаю...");
+  try {
+    await putFile("works/" + file, JSON.stringify({ note: NOTE, items: [] }, null, 2) + "\n",
+                  null, "works: new category " + name);
+    cats.push({ label: name, file: file, items: [], sha: "", dirty: false });
+    const listText = JSON.stringify(cats.map(c => ({ label: c.label, file: c.file })), null, 2) + "\n";
+    catsSha = await putFile("works/categories.json", listText, catsSha, "works: categories");
+    // pick up the sha of the file we just created
+    const f = await getFile("works/" + file);
+    cats[cats.length - 1].sha = f.sha;
+    document.getElementById("newCatName").value = "";
+    say(box, "Готово. Категория появится на сайте, когда в ней будет видео.", "ok");
+    draw();
+  } catch (e) {
+    say(box, "Ошибка: " + e.message, "bad");
+  }
+};
+
+/* ---------- boot ---------- */
+const authMsg = document.getElementById("authMsg");
+document.getElementById("connect").onclick = connect;
+document.getElementById("forget").onclick = () => {
+  localStorage.removeItem("dicin_token");
+  document.getElementById("token").value = "";
+  document.getElementById("app").style.display = "none";
+  say(authMsg, "Токен удалён из браузера");
+};
+const saved = localStorage.getItem("dicin_token");
+if (saved) {
+  document.getElementById("token").value = saved;
+  connect();
+}
+</script>
+
+</body>
+</html>
