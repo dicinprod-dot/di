@@ -125,8 +125,10 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
 }
 /* vertical work keeps its own shape, in narrower columns */
 .work-tiles.vert{grid-template-columns:repeat(6, minmax(0,1fr)); gap:22px 18px;}
-.tile.vert .frame{aspect-ratio:9/16;}   /* also works for one odd vertical
-                                           video inside a horizontal row */
+.tile.vert .frame{aspect-ratio:9/16;}   /* orientation is per video, so a row
+                                           can hold both shapes at once */
+.work-tiles.vert .tile:not(.vert){grid-column:span 2;}   /* a horizontal video in a
+                                           vertical row needs the extra width */
 
 @media (max-width:1100px){
   .work-row{grid-template-columns:1fr;}
@@ -557,7 +559,8 @@ const WORKS = [
   ]},
   { label: "Talking Head", vertical: true, items: [
     "s8C43aErscM", "g_d9eW-KPxw", "bZ6KFkodiI0",
-    "UV0dVeslLNE", "E08SWdoaGHc"
+    { id: "UV0dVeslLNE", vertical: false },
+    { id: "E08SWdoaGHc", vertical: false }
   ]},
   { label: "Sport", vertical: true, items: [
     "ktUPw9cTlbM", "4peXnydfaUc", "VDjiZUakBe0"
