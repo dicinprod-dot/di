@@ -452,7 +452,7 @@ footer .res-label{align-self:start;}
 
     <div class="item">
       <div class="ttl">Camera</div>
-      <div class="meta">Lumix S5IIX, Blackmagic (BRAW)<br>Multi-cam on Blackmagic via ATEM Mini Pro ISO<br>Studio and continuous lighting</div>
+      <div class="meta">Lumix S5IIX, Blackmagic (BRAW), Sony<br>Multi-cam on Blackmagic via ATEM Mini Pro ISO<br>Studio and continuous lighting</div>
     </div>
 
     <div class="item">
@@ -531,6 +531,10 @@ const WORKS = [
   var host = document.getElementById("work-rows");
   if (!host) return;
 
+  function prune(row) {                 // a category left with no working video disappears
+    if (!row.querySelector(".tile")) row.remove();
+  }
+
   WORKS.forEach(function (group) {
     if (!group.items || !group.items.length) return;
 
@@ -562,17 +566,22 @@ const WORKS = [
       img.alt = "";
       img.loading = "lazy";
       img.src = w.cover || "https://i.ytimg.com/vi/" + w.id + "/maxresdefault.jpg";
+
+      function gone() {                 // dead video: drop the tile entirely
+        a.remove();
+        prune(row);
+      }
+
       img.onerror = function () {
         if (!w.cover && img.src.indexOf("maxresdefault") > -1) {
           img.src = "https://i.ytimg.com/vi/" + w.id + "/hqdefault.jpg";
           return;
         }
-        // cover really is unavailable: show a labelled block, never an empty box
-        var ph = document.createElement("div");
-        ph.className = "ph";
-        ph.textContent = group.label;
-        frame.innerHTML = "";
-        frame.appendChild(ph);
+        gone();
+      };
+      img.onload = function () {
+        // YouTube answers for an unavailable video with a 120x90 grey placeholder
+        if (!w.cover && img.naturalWidth <= 120) gone();
       };
 
       frame.appendChild(img);
@@ -600,8 +609,13 @@ const HERO_ID = "9nUPewJb4yM";
   var box = document.getElementById("hero-media");
   if (!box || !HERO_ID) return;
 
-  // still frame first: the screen is never empty or black
-  box.style.backgroundImage = "url(https://i.ytimg.com/vi/" + HERO_ID + "/maxresdefault.jpg)";
+  // still frame first, but only if the video actually exists:
+  // for a dead id YouTube returns a grey 120x90 placeholder
+  var still = new Image();
+  still.onload = function () {
+    if (still.naturalWidth > 120) box.style.backgroundImage = "url(" + still.src + ")";
+  };
+  still.src = "https://i.ytimg.com/vi/" + HERO_ID + "/maxresdefault.jpg";
 
   // no video background over a metered or slow connection
   var c = navigator.connection || {};
