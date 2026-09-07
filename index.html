@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DI.CIN.PROD — Dmitry Demenko</title>
-<meta name="build" content="v13-clean-player">
+<meta name="build" content="v15-accordion">
 <meta name="description" content="Videographer, video producer and editor. Commercial, HoReCa, fashion, events, podcasts and educational content.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -114,14 +114,27 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
 }
 .sec-head .years{color:var(--faint);}
 
-/* ---------------- work grid ---------------- */
-.work-row{
-  display:grid; gap:30px 26px;
-  grid-template-columns:1.9fr 4fr;
-  padding:0 0 56px;
+/* ---------------- work: collapsed list of categories ---------------- */
+.cat{border-top:1px solid var(--line);}
+.cat:last-of-type{border-bottom:1px solid var(--line);}
+.cat-head{
+  width:100%; background:none; border:0; cursor:pointer; text-align:left;
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  padding:19px 0;
+  font-family:var(--sans); font-weight:300; font-size:15px;
+  letter-spacing:.01em; text-transform:uppercase; color:var(--dim);
+  transition:color .18s;
 }
-/* a 12-column bed: horizontal videos take 3 of it, vertical ones 2,
-   so both shapes can share a row without anyone being squashed */
+.cat-head:hover, .cat.open .cat-head{color:var(--ink);}
+.cat-head .meta{
+  font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  color:var(--faint); white-space:nowrap; display:flex; gap:16px; align-items:baseline;
+}
+.cat-head .sign{display:inline-block; width:9px; text-align:center;}
+
+.cat-body{display:none; padding:2px 0 40px;}
+.cat.open .cat-body{display:block;}
+
 .work-tiles{
   display:grid; gap:22px 20px;
   grid-template-columns:repeat(12, minmax(0,1fr));
@@ -133,7 +146,6 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
 .tile.vert .frame{aspect-ratio:9/16;}
 
 @media (max-width:1100px){
-  .work-row{grid-template-columns:1fr;}
   .tile{grid-column:span 4;}
   .tile.vert{grid-column:span 3;}
 }
@@ -145,6 +157,7 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
   .work-tiles{gap:16px 14px;}
   .tile{grid-column:span 12;}
   .tile.vert{grid-column:span 6;}
+  .cat-head{font-size:13px; padding:16px 0;}
 }
 
 .tile{display:block;}
@@ -153,22 +166,33 @@ section{padding:76px var(--pad) 0; scroll-margin-top:56px;}
   image-rendering:auto; backface-visibility:hidden;}
 .tile:hover img, .tile:focus-visible img{transform:scale(1.03); opacity:1;}
 
-/* ---------------- playback inside the tile ---------------- */
-.frame iframe{
+/* ---------------- player overlay ---------------- */
+.lb{
+  position:fixed; inset:0; z-index:100;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(9,9,9,.965);
+  padding:clamp(14px,4vw,48px);
+}
+.lb.open{display:flex;}
+.lb-frame{
+  position:relative; width:min(92vw, 1360px); aspect-ratio:16/9;
+  max-height:86svh; background:#0b0b0a center/contain no-repeat;
+}
+.lb.vert .lb-frame{width:auto; height:min(86svh, 900px); aspect-ratio:9/16;}
+.lb-frame iframe{
   position:absolute; inset:0; width:100%; height:100%; border:0;
   opacity:0; transition:opacity .25s;
 }
-.tile.rolling iframe{opacity:1;}   /* revealed only once frames are moving,
-                                      so YouTube's poster is never seen */
-.tile.rolling img{opacity:0;}
-.tile.playing:hover img{transform:none;}
-.tile-close{
-  position:absolute; top:6px; right:6px; z-index:3;
-  background:rgba(9,9,9,.72); color:#efefec; border:0; cursor:pointer;
-  width:26px; height:26px; line-height:1; font-size:15px;
-  display:flex; align-items:center; justify-content:center;
+.lb.rolling .lb-frame iframe{opacity:1;}   /* revealed only once frames move,
+                                              so the YouTube poster never shows */
+.lb-close{
+  position:absolute; top:clamp(12px,3vw,26px); right:clamp(12px,3vw,26px);
+  background:none; border:0; cursor:pointer; padding:10px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--dim); z-index:2;
 }
-.tile-close:hover{background:#000;}
+.lb-close:hover{color:var(--hover);}
+body.lb-on{overflow:hidden;}
 
 /* ---------------- resume ---------------- */
 .res-row{
@@ -586,10 +610,8 @@ const FALLBACK_WORKS = [
   { label: "Appearances",    items: [] }
 ];
 
-/* ---- playback happens inside the tile itself ---- */
-var stopCurrent = null;                 // only one video plays at a time
+/* ---- videos open in an overlay above the site, never on YouTube ---- */
 var ytReady = null;
-
 function loadYT() {
   if (ytReady) return ytReady;
   ytReady = new Promise(function (resolve) {
@@ -602,65 +624,64 @@ function loadYT() {
   return ytReady;
 }
 
-function playInTile(frame, tile, id) {
-  if (stopCurrent) stopCurrent();
+var openPlayer = (function () {
+  var lb = document.createElement("div");
+  lb.className = "lb";
+  lb.innerHTML = '<button class="lb-close" type="button">Close</button><div class="lb-frame"></div>';
+  document.body.appendChild(lb);
 
-  var mount = document.createElement("div");
-  frame.appendChild(mount);
-
-  var close = document.createElement("button");
-  close.className = "tile-close";
-  close.type = "button";
-  close.setAttribute("aria-label", "Stop");
-  close.textContent = "\u00d7";
-  frame.appendChild(close);
-
+  var box = lb.querySelector(".lb-frame");
+  var closeBtn = lb.querySelector(".lb-close");
   var player = null;
-  function stop() {
+
+  function close() {
     try { if (player && player.destroy) player.destroy(); } catch (e) {}
-    if (mount.parentNode) mount.parentNode.removeChild(mount);
-    if (close.parentNode) close.parentNode.removeChild(close);
-    tile.classList.remove("playing", "rolling");
-    stopCurrent = null;
+    player = null;
+    box.innerHTML = "";
+    box.style.backgroundImage = "";
+    lb.classList.remove("open", "vert", "rolling");
+    document.body.classList.remove("lb-on");
   }
-  close.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); stop(); });
 
-  tile.classList.add("playing");
-  stopCurrent = stop;
-
-  loadYT().then(function () {
-    if (!mount.parentNode) return;      // stopped before the API finished loading
-    player = new YT.Player(mount, {
-      videoId: id,
-      host: "https://www.youtube-nocookie.com",
-      playerVars: {
-        autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1,
-        iv_load_policy: 3, color: "white"
-      },
-      events: {
-        onReady: function (e) { e.target.playVideo(); },
-        onStateChange: function (e) {
-          // the cover stays up until real frames are on screen, so the
-          // YouTube poster with its play button and channel avatar never shows
-          if (e.data === YT.PlayerState.PLAYING) tile.classList.add("rolling");
-        },
-        onError: stop
-      }
-    });
+  closeBtn.addEventListener("click", close);
+  lb.addEventListener("click", function (e) { if (e.target === lb) close(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && lb.classList.contains("open")) close();
   });
-}
 
-document.addEventListener("keydown", function (e) {
-  if (e.key === "Escape" && stopCurrent) stopCurrent();
-});
+  return function (id, vertical, coverSrc) {
+    close();
+    lb.classList.toggle("vert", !!vertical);
+    lb.classList.add("open");
+    document.body.classList.add("lb-on");
+    if (coverSrc) box.style.backgroundImage = "url(" + coverSrc + ")";  // your own still, not theirs
+
+    var mount = document.createElement("div");
+    box.appendChild(mount);
+
+    loadYT().then(function () {
+      if (!mount.parentNode) return;    // closed before the API finished loading
+      player = new YT.Player(mount, {
+        videoId: id,
+        host: "https://www.youtube-nocookie.com",
+        playerVars: {
+          autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1,
+          iv_load_policy: 3, color: "white"
+        },
+        events: {
+          onReady: function (e) { e.target.playVideo(); },
+          onStateChange: function (e) {
+            if (e.data === YT.PlayerState.PLAYING) lb.classList.add("rolling");
+          }
+        }
+      });
+    });
+  };
+})();
 
 (function () {
   var host = document.getElementById("work-rows");
   if (!host) return;
-
-  function prune(row) {                 // a category left with no working video disappears
-    if (!row.querySelector(".tile")) row.remove();
-  }
 
   // "v:abc" means vertical, plain "abc" means horizontal. Nothing else decides it.
   function read(entry) {
@@ -670,74 +691,112 @@ document.addEventListener("keydown", function (e) {
     return { id: entry, vertical: false };
   }
 
+  function buildTile(w, label, tiles, onDead) {
+    var vertical = !!w.vertical;
+
+    var a = document.createElement("a");
+    a.className = "tile" + (vertical ? " vert" : "");
+    a.href = "https://www.youtube.com/watch?v=" + w.id;   // still works on middle click
+    a.setAttribute("aria-label", label + " video");
+
+    var frame = document.createElement("div");
+    frame.className = "frame";
+    var img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    frame.appendChild(img);
+    a.appendChild(frame);
+    tiles.appendChild(a);
+
+    a.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;   // let power users open a tab
+      e.preventDefault();
+      openPlayer(w.id, vertical, img.currentSrc || img.src);
+    });
+
+    function gone() { a.remove(); onDead(); }
+
+    if (w.cover) { img.src = w.cover; img.onerror = gone; return; }
+
+    // For a vertical video the first two names are the cover in its own shape.
+    // If YouTube has neither, the wide cover is cropped to 9:16 by the tile,
+    // which cuts the blurred side panels off anyway.
+    var steps = vertical
+      ? ["oardefault", "oar2", "maxresdefault", "sddefault", "hqdefault"]
+      : ["maxresdefault", "sddefault", "hqdefault"];
+    var step = 0;
+    function next() {
+      if (step >= steps.length) { gone(); return; }        // every size failed
+      img.src = "https://i.ytimg.com/vi/" + w.id + "/" + steps[step++] + ".jpg";
+    }
+    img.onerror = next;
+    img.onload = function () {
+      // 120x90 means this size does not exist, not that the video is gone
+      if (img.naturalWidth <= 120) next();
+    };
+    next();
+  }
+
   function renderGroup(group) {
     if (!group.items || !group.items.length) return;
 
-    var row = document.createElement("div");
-    row.className = "work-row";
+    var cat = document.createElement("div");
+    cat.className = "cat";
 
-    var label = document.createElement("div");
-    label.className = "res-label";
-    label.textContent = group.label;
-    row.appendChild(label);
+    var head = document.createElement("button");
+    head.className = "cat-head";
+    head.type = "button";
+    head.setAttribute("aria-expanded", "false");
+    head.innerHTML = '<span class="name"></span>' +
+                     '<span class="meta"><span class="n"></span><span class="sign">+</span></span>';
+    head.querySelector(".name").textContent = group.label;
 
+    var live = group.items.length;
+    function countLabel() {
+      head.querySelector(".n").textContent = live + (live === 1 ? " video" : " videos");
+    }
+    countLabel();
+
+    var body = document.createElement("div");
+    body.className = "cat-body";
     var tiles = document.createElement("div");
     tiles.className = "work-tiles";
+    body.appendChild(tiles);
 
-    group.items.forEach(function (entry) {
-      var w = read(entry);
-      if (!w || !w.id) return;
-      var vertical = !!w.vertical;
-
-      var a = document.createElement("a");
-      a.className = "tile" + (vertical ? " vert" : "");
-      a.href = "https://www.youtube.com/watch?v=" + w.id;   // still works on middle click
-      a.setAttribute("aria-label", group.label + " video");
-
-      var frame = document.createElement("div");
-      frame.className = "frame";
-
-      a.addEventListener("click", function (e) {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-        if (a.classList.contains("playing")) return;   // let clicks reach the player
-        e.preventDefault();
-        playInTile(frame, a, w.id);
+    var built = false;
+    function build() {
+      if (built) return;
+      built = true;
+      group.items.forEach(function (entry) {
+        var w = read(entry);
+        if (!w || !w.id) return;
+        buildTile(w, group.label, tiles, function () {
+          live--;                       // a dead video drops out of the count
+          countLabel();
+          if (live <= 0) cat.remove();
+        });
       });
-      var img = document.createElement("img");
-      img.alt = "";
-      img.loading = "lazy";
-      frame.appendChild(img);
-      a.appendChild(frame);
-      tiles.appendChild(a);
+    }
 
-      if (w.cover) {
-        img.src = w.cover;
-        img.onerror = function () { a.remove(); prune(row); };
-        return;
+    head.addEventListener("click", function () {
+      var opening = !cat.classList.contains("open");
+      // one open section at a time
+      host.querySelectorAll(".cat.open").forEach(function (other) {
+        other.classList.remove("open");
+        other.querySelector(".cat-head").setAttribute("aria-expanded", "false");
+        other.querySelector(".sign").textContent = "+";
+      });
+      if (opening) {
+        build();                        // covers are fetched on first open only
+        cat.classList.add("open");
+        head.setAttribute("aria-expanded", "true");
+        head.querySelector(".sign").textContent = "\u2013";
       }
-
-      // For a vertical video the first two names are the cover in its own shape.
-      // If YouTube has neither, the wide cover is cropped to 9:16 by the tile,
-      // which cuts the blurred side panels off anyway.
-      var steps = vertical
-        ? ["oardefault", "oar2", "maxresdefault", "sddefault", "hqdefault"]
-        : ["maxresdefault", "sddefault", "hqdefault"];
-      var step = 0;
-
-      function next() {
-        if (step >= steps.length) { a.remove(); prune(row); return; }  // every size failed
-        img.src = "https://i.ytimg.com/vi/" + w.id + "/" + steps[step++] + ".jpg";
-      }
-      img.onerror = next;
-      img.onload = function () {
-        // 120x90 means this size does not exist, not that the video is gone
-        if (img.naturalWidth <= 120) next();
-      };
-      next();
     });
 
-    row.appendChild(tiles);
-    host.appendChild(row);
+    cat.appendChild(head);
+    cat.appendChild(body);
+    host.appendChild(cat);
   }
 
   function render(groups) {
